@@ -1,9 +1,18 @@
 import pygame
+import math
 pygame.init()
-window_width = 500
-window_height = 800
+window_width = 800
+window_height = 1000
 sky_surface = pygame.Surface((window_width,window_height))
 sky_surface.fill("white")
+stredovka = pygame.Surface((800,10))
+stredovka.fill("red")
+puntiky = [(150,366),(150,633),(650,366),(650,633),(150,170),(150,830),(650,170),(650,830)]
+postranni_kruhy = [(150,170),(150,830),(650,170),(650,830)]
+ofsajd_lajna = pygame.Surface((800,10))
+ofsajd_lajna.fill("blue")
+brankova_lajna = pygame.Surface((800,5))
+brankova_lajna.fill("red")
 pygame.display.set_caption("Hokejový zápas") 
 game_active = True
 has_puck = True
@@ -77,16 +86,17 @@ class Puck(pygame.sprite.Sprite):
         if keys[pygame.K_e]:
             self.rect = self.image.get_rect(topleft = (100,200))
 class Goal(pygame.sprite.Sprite):
-    def __init__(self, a = 100, b = 100):
+    def __init__(self, a = 390, b = 90,):
         super().__init__()
-        self.image = pygame.image.load("branka.png")
-        self.image = pygame.transform.scale(self.image, (50,50))
+        self.image = pygame.Surface((20,10))
+        self.image.fill("Black")
         self.rect =  self.image.get_rect()
         self.rect.topleft = (a, b)
+        
 def is_collision():
-    return (
-    pygame.sprite.spritecollide(puck.sprite, goal, False) or
-    pygame.sprite.spritecollide(puck.sprite, goal2, False))
+    if puck.sprite.rect.colliderect(goal.sprite.rect):
+        if puck.sprite.rect.bottom <= goal.sprite.rect.top:
+            print("Dotek shora!")
 
 
 goalkeeper = pygame.sprite.GroupSingle()
@@ -108,7 +118,7 @@ player.add(Player(100,200))
 goal = pygame.sprite.GroupSingle()
 goal.add(Goal())
 goal2 = pygame.sprite.GroupSingle()
-goal2.add(Goal(300,400))
+goal2.add(Goal(390,905))
 screen = pygame.display.set_mode((window_width, window_height))
 clock = pygame.time.Clock()
 offset_x = 20
@@ -132,6 +142,17 @@ while True:
     if game_active:
         keys = pygame.key.get_pressed()
         screen.blit(sky_surface,(0,0)) 
+        screen.blit(stredovka,(0,495))
+        screen.blit(ofsajd_lajna,(0,666))
+        screen.blit(ofsajd_lajna,(0,333))
+        screen.blit(brankova_lajna,(0,100))
+        screen.blit(brankova_lajna,(0,900))
+        pygame.draw.circle(sky_surface, "blue", (400, 500), 50, 5)
+        pygame.draw.circle(sky_surface, "blue", (400,500),5 )
+        for q in puntiky:
+            pygame.draw.circle(sky_surface, "red", q,5,)
+        for w in postranni_kruhy:
+            pygame.draw.circle(sky_surface, "red",w,50,5 )
         player.update(keys)
         player.draw(screen)
         frame += 1
