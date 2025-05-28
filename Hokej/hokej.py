@@ -17,11 +17,13 @@ pygame.display.set_caption("Hokejový zápas")
 game_active = True
 has_puck = True
 class Player(pygame.sprite.Sprite):
-    def __init__(self, x = 0, y = 0):
+    def __init__(self, x = 100, y = 200):
         super().__init__()
         self.image = pygame.Surface((40,60))
         self.image.fill("Red")
         self.rect = self.image.get_rect(topright = (x,y))
+        self.default_x = x
+        self.default_y = y
         self.speed = 5
         self.direction = None
         self.position = (x,y)
@@ -47,8 +49,11 @@ class Player(pygame.sprite.Sprite):
             self.rect.top = 0
         if self.rect.bottom > window_height:
             self.rect.bottom = window_height
-    def reset_position(self):
-        self.rect.topright = self.position
+        def reset(self):
+            self.x = 100
+            self.y = 200
+         
+
 
 class Goalkeeper(pygame.sprite.Sprite):
     def __init__(self):
@@ -72,6 +77,8 @@ class Puck(pygame.sprite.Sprite):
         self.image = pygame.Surface((5,5))
         self.image.fill("Black")
         self.rect = self.image.get_rect(topleft = (x,y))
+        self.default_x = x
+        self.default_y = y
     def has_puck(self,player):
         offset_x = 30
         offset_y = 10
@@ -82,21 +89,39 @@ class Puck(pygame.sprite.Sprite):
         else:
             self.rect.centerx = player.rect.centerx
         self.rect.centery = player.rect.centery + offset_y
+    def reset(self):
+        self.x = 100
+        self.y = 200
     def shot_puck(self, keys):
         if keys[pygame.K_e]:
             self.rect = self.image.get_rect(topleft = (100,200))
 class Goal(pygame.sprite.Sprite):
     def __init__(self, a = 390, b = 90,):
         super().__init__()
+<<<<<<< HEAD
         self.image = pygame.Surface((20,10))
+=======
+        self.image = pygame.Surface((30,20))
+>>>>>>> origin/main
         self.image.fill("Black")
         self.rect =  self.image.get_rect()
         self.rect.topleft = (a, b)
         
 def is_collision():
+<<<<<<< HEAD
     if puck.sprite.rect.colliderect(goal.sprite.rect):
         if puck.sprite.rect.bottom <= goal.sprite.rect.top:
             print("Dotek shora!")
+=======
+    return (
+    pygame.sprite.spritecollide(puck.sprite, goal, False) or
+    pygame.sprite.spritecollide(puck.sprite, goal2, False))
+def reset_game():
+    player.sprite.rect.x = player.sprite.default_x
+    player.sprite.rect.y = player.sprite.default_y
+    puck.sprite.rect.x = player.sprite.default_x
+    puck.sprite.rect.y = player.sprite.default_y
+>>>>>>> origin/main
 
 
 goalkeeper = pygame.sprite.GroupSingle()
@@ -114,7 +139,7 @@ enemy3.add(Enemy(450,450))
 enemy4 = pygame.sprite.GroupSingle()
 enemy4.add(Enemy(500,500))
 player = pygame.sprite.GroupSingle() 
-player.add(Player(100,200)) 
+player.add(Player()) 
 goal = pygame.sprite.GroupSingle()
 goal.add(Goal())
 goal2 = pygame.sprite.GroupSingle()
@@ -183,10 +208,11 @@ while True:
         if is_collision():
             game_active = False
             score += 1
-            #if keys[pygame.K_r]:
-               # player.sprite.reset_position()
-                #player.sprite.active = False
-                #pygame.time.set_timer(pygame.USEREVENT, 1000)
+            reset_game()
+            player.update(keys)
+            player.draw(screen)
+        
+            
 
 
     score_surface = score_font.render(f"Skóre: {score}", True, "Black")
@@ -194,4 +220,4 @@ while True:
     time_surface = time_font.render(f"čas: {time}", True, "Black")
     screen.blit(time_surface, time_rect)
     pygame.display.update()
-    clock.tick(60) 
+    clock.tick(60)
