@@ -98,30 +98,15 @@ class Puck(pygame.sprite.Sprite):
 class Goal(pygame.sprite.Sprite):
     def __init__(self, a = 390, b = 90,):
         super().__init__()
-<<<<<<< HEAD
         self.image = pygame.Surface((20,10))
-=======
-        self.image = pygame.Surface((30,20))
->>>>>>> origin/main
         self.image.fill("Black")
         self.rect =  self.image.get_rect()
         self.rect.topleft = (a, b)
         
 def is_collision():
-<<<<<<< HEAD
     if puck.sprite.rect.colliderect(goal.sprite.rect):
         if puck.sprite.rect.bottom <= goal.sprite.rect.top:
             print("Dotek shora!")
-=======
-    return (
-    pygame.sprite.spritecollide(puck.sprite, goal, False) or
-    pygame.sprite.spritecollide(puck.sprite, goal2, False))
-def reset_game():
-    player.sprite.rect.x = player.sprite.default_x
-    player.sprite.rect.y = player.sprite.default_y
-    puck.sprite.rect.x = player.sprite.default_x
-    puck.sprite.rect.y = player.sprite.default_y
->>>>>>> origin/main
 
 
 goalkeeper = pygame.sprite.GroupSingle()
@@ -208,7 +193,7 @@ while True:
         if is_collision():
             game_active = False
             score += 1
-            reset_game()
+           
             player.update(keys)
             player.draw(screen)
         
