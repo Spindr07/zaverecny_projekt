@@ -3,11 +3,7 @@ pygame.init()
 window_width = 800
 window_height = 1000
 end_surface = pygame.Surface((window_width,window_height))
-<<<<<<< HEAD
 end_surface.fill("white")
-=======
-end_surface.fill("black")
->>>>>>> origin/main
 sky_surface = pygame.Surface((window_width,window_height))
 sky_surface.fill("white")
 stredovka = pygame.Surface((800,10))
@@ -84,22 +80,45 @@ class Puck(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(topleft = (x,y))
         self.default_x = x
         self.default_y = y
+        self.in_motion = False
+        self.speed_x = 0
+        self.speed_y = 0
     def has_puck(self,player):
-        offset_x = 30
-        offset_y = 10
-        if player.direction == "left":
-            self.rect.centerx = player.rect.centerx - offset_x
-        elif player.direction == "right":
-            self.rect.centerx = player.rect.centerx + offset_x
-        else:
-            self.rect.centerx = player.rect.centerx
-        self.rect.centery = player.rect.centery + offset_y
+        if not self.in_motion:
+            offset_x = 30
+            offset_y = 10
+            if player.direction == "left":
+                self.rect.centerx = player.rect.centerx - offset_x
+            elif player.direction == "right":
+                self.rect.centerx = player.rect.centerx + offset_x
+            else:
+                self.rect.centerx = player.rect.centerx
+            self.rect.centery = player.rect.centery + offset_y
+    def udpate(self):
+        if self.in_motion:
+            self.rect.x += self.speed_x
+            self.rect.y += self.speed_y
+            self.speed_x *= 0.98
+            self.speed_y *= 0.98
+            if abs(self.speed_x) < 0.1 and abs (self.speed_y) < 0.1:
+                self.in_motion = False
+                self.speed_x = 0
+                self.speed_y = 0
+    def shot_puck(self, player):
+        if not self.in_motion:
+            self.in_motion = True
+            if player.direction == "left":
+                self.speed_x = -10
+                self.speed_y = 0
+            elif player.direction == "right":
+                self.speed_x = 10
+                self.speed_y = 0
+            else:
+                self.speed_x = 0
+                self.speed_y = -10
     def reset(self):
         self.x = 100
         self.y = 200
-    def shot_puck(self, keys):
-        if keys[pygame.K_e]:
-            self.rect = self.image.get_rect(topleft = (100,200))
 class Goal(pygame.sprite.Sprite):
     def __init__(self, a = 390, b = 90,):
         super().__init__()
@@ -145,14 +164,10 @@ score_font = pygame.font.SysFont("arial", 40)
 time_font = pygame.font.SysFont("arial", 40)
 title_font = pygame.font.SysFont("arial", 40)
 prompt_font = pygame.font.SysFont("arial", 40)
-<<<<<<< HEAD
-ovladani_font = pygame.font.SysFont("arial", 40)
 game_state = "menu"
 pohar = pygame.image.load("pohar.png")
 pohar= pygame.transform.scale(pohar, (100,100))
-=======
 game_state = "menu"
->>>>>>> origin/main
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -181,15 +196,12 @@ while True:
         screen.fill("white")
         title_surface = title_font.render(f"Hokejový zápas", True, "Black")
         prompt_surface = prompt_font.render(f"Stiskněte enter", True, "Black")
-<<<<<<< HEAD
-        ovladani_surface = ovladani_font.render(f"WSAD = ovládání \n e = střela", True, "Black")
+        WSAD_surface = prompt_font.render(f"WSAD = ovládání", True, "Black")
+        SPACE_surface = prompt_font.render(f"SPACE = střela", True, "Black")
         screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
         screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
-        screen.blit(ovladani_surface, (window_width//2 - prompt_surface.get_width()//2, 400))
-=======
-        screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
-        screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
->>>>>>> origin/main
+        screen.blit(WSAD_surface, (window_width//2 - prompt_surface.get_width()//2, 400))
+        screen.blit(SPACE_surface, (window_width//2 - prompt_surface.get_width()//2, 500))
     if game_state == "hra":
         if game_active:
             keys = pygame.key.get_pressed()
@@ -237,7 +249,6 @@ while True:
                 score += 1
                 player.update(keys)
                 player.draw(screen)
-<<<<<<< HEAD
             score_surface = score_font.render(f"Skóre: {score}", True, "Black")
             score_rect = score_surface.get_rect(topleft=(20, 20))
             screen.blit(score_surface, score_rect)
@@ -248,15 +259,6 @@ while True:
             screen.blit(end_surface,(0,0))
             screen.blit(pohar,(200,200))
         
-=======
-        else:
-            screen.blit(end_surface,(0,0))
-        score_surface = score_font.render(f"Skóre: {score}", True, "Black")
-        score_rect = score_surface.get_rect(topleft=(20, 20))
-        screen.blit(score_surface, score_rect)
-        time_surface = time_font.render(f"čas: {time}", True, "Black")
-        time_rect = time_surface.get_rect(topright=(200,200))
-        screen.blit(time_surface, time_rect)
->>>>>>> origin/main
+
     pygame.display.update()
     clock.tick(60)
