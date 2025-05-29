@@ -3,7 +3,11 @@ pygame.init()
 window_width = 800
 window_height = 1000
 end_surface = pygame.Surface((window_width,window_height))
+<<<<<<< HEAD
 end_surface.fill("white")
+=======
+end_surface.fill("black")
+>>>>>>> origin/main
 sky_surface = pygame.Surface((window_width,window_height))
 sky_surface.fill("white")
 stredovka = pygame.Surface((800,10))
@@ -141,10 +145,14 @@ score_font = pygame.font.SysFont("arial", 40)
 time_font = pygame.font.SysFont("arial", 40)
 title_font = pygame.font.SysFont("arial", 40)
 prompt_font = pygame.font.SysFont("arial", 40)
+<<<<<<< HEAD
 ovladani_font = pygame.font.SysFont("arial", 40)
 game_state = "menu"
 pohar = pygame.image.load("pohar.png")
 pohar= pygame.transform.scale(pohar, (100,100))
+=======
+game_state = "menu"
+>>>>>>> origin/main
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -173,10 +181,15 @@ while True:
         screen.fill("white")
         title_surface = title_font.render(f"Hokejový zápas", True, "Black")
         prompt_surface = prompt_font.render(f"Stiskněte enter", True, "Black")
+<<<<<<< HEAD
         ovladani_surface = ovladani_font.render(f"WSAD = ovládání \n e = střela", True, "Black")
         screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
         screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
         screen.blit(ovladani_surface, (window_width//2 - prompt_surface.get_width()//2, 400))
+=======
+        screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
+        screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
+>>>>>>> origin/main
     if game_state == "hra":
         if game_active:
             keys = pygame.key.get_pressed()
@@ -224,6 +237,7 @@ while True:
                 score += 1
                 player.update(keys)
                 player.draw(screen)
+<<<<<<< HEAD
             score_surface = score_font.render(f"Skóre: {score}", True, "Black")
             score_rect = score_surface.get_rect(topleft=(20, 20))
             screen.blit(score_surface, score_rect)
@@ -234,5 +248,15 @@ while True:
             screen.blit(end_surface,(0,0))
             screen.blit(pohar,(200,200))
         
+=======
+        else:
+            screen.blit(end_surface,(0,0))
+        score_surface = score_font.render(f"Skóre: {score}", True, "Black")
+        score_rect = score_surface.get_rect(topleft=(20, 20))
+        screen.blit(score_surface, score_rect)
+        time_surface = time_font.render(f"čas: {time}", True, "Black")
+        time_rect = time_surface.get_rect(topright=(200,200))
+        screen.blit(time_surface, time_rect)
+>>>>>>> origin/main
     pygame.display.update()
     clock.tick(60)
