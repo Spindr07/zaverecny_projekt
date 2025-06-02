@@ -83,8 +83,10 @@ class Puck(pygame.sprite.Sprite):
         self.in_motion = False
         self.speed_x = 0
         self.speed_y = 0
+        self.stopped = False
     def has_puck(self,player):
         if not self.in_motion:
+            self.stopped = False
             offset_x = 30
             offset_y = 10
             if player.direction == "left":
@@ -94,31 +96,51 @@ class Puck(pygame.sprite.Sprite):
             else:
                 self.rect.centerx = player.rect.centerx
             self.rect.centery = player.rect.centery + offset_y
-    def udpate(self):
+    def update(self):
         if self.in_motion:
             self.rect.x += self.speed_x
             self.rect.y += self.speed_y
             self.speed_x *= 0.98
             self.speed_y *= 0.98
-            if abs(self.speed_x) < 0.1 and abs (self.speed_y) < 0.1:
+            if self.rect.left <= 0 or self.rect.right >= 800:
+                self.speed_x *= -1
+            if self.rect.top <= 0 or self.rect.bottom >= 1000:
+                self.speed_y *= -1
+            if abs(self.speed_x) < 0.1 and abs(self.speed_y) < 0.1:
                 self.in_motion = False
                 self.speed_x = 0
                 self.speed_y = 0
-    def shot_puck(self, player):
+                self.stopped = True
+    def shot_puck(self, player, keys):
         if not self.in_motion:
             self.in_motion = True
-            if player.direction == "left":
-                self.speed_x = -10
-                self.speed_y = 0
-            elif player.direction == "right":
-                self.speed_x = 10
-                self.speed_y = 0
-            else:
-                self.speed_x = 0
-                self.speed_y = -10
+            speed = 10
+            self.speed_x = 0
+            self.speed_y = 0
+            if keys[pygame.K_w]:
+                self.speed_y = -speed
+            if keys[pygame.K_s]:
+                self.speed_y = speed
+            if keys[pygame.K_a]:
+                self.speed_x = -speed
+            if keys[pygame.K_d]:
+                self.speed_x = speed
+            if self.speed_x != 0 and self.speed_y != 0:
+                self.speed_x *= 0.7071  
+                self.speed_y *= 0.7071
+            if self.speed_x == 0 and self.speed_y == 0:
+                if player.direction == "left":
+                    self.speed_x = -speed
+                elif player.direction == "right":
+                    self.speed_x = speed
+                else:
+                    self.speed_y = -speed
+
     def reset(self):
-        self.x = 100
-        self.y = 200
+        self.rect.topleft = (self.default_x, self.default_y)
+        self.in_motion = False
+        self.speed_x = 0
+        self.speed_y = 0
 class Goal(pygame.sprite.Sprite):
     def __init__(self, a = 390, b = 90,):
         super().__init__()
@@ -131,8 +153,30 @@ def is_collision():
     if puck.sprite.rect.colliderect(goal.sprite.rect):
         if puck.sprite.rect.bottom <= goal.sprite.rect.top:
             print("Dotek shora!")
-
-
+def check_goal_collision():
+    if puck.sprite.rect.colliderect(goal.sprite.rect):
+        if puck.sprite.speed_y < 0 and puck.sprite.rect.bottom <= goal.sprite.rect.bottom + 5:
+            print("GÓL DO HORNÍ BRANKY!")
+            puck.sprite.reset()
+            return True
+        else:
+            if abs(puck.sprite.speed_x) > abs(puck.sprite.speed_y):
+                puck.sprite.speed_x *= -1
+            else:
+                puck.sprite.speed_y *= -1
+            return False
+    if puck.sprite.rect.colliderect(goal2.sprite.rect):
+        if puck.sprite.speed_y > 0 and puck.sprite.rect.top >= goal2.sprite.rect.top - 5:
+            print("GÓL DO DOLNÍ BRANKY!")
+            puck.sprite.reset()
+            return True
+        else:
+            if abs(puck.sprite.speed_x) > abs(puck.sprite.speed_y):
+                puck.sprite.speed_x *= -1
+            else:
+                puck.sprite.speed_y *= -1
+            return False
+    return False
 goalkeeper = pygame.sprite.GroupSingle()
 goalkeeper.add(Goalkeeper())
 puck = pygame.sprite.GroupSingle()
@@ -231,17 +275,24 @@ while True:
             enemy3.draw(screen)
             enemy4.update()
             enemy4.draw(screen)
-            puck.update()
+            puck.sprite.update()
             puck.draw(screen)
-            puck.sprite.has_puck(player.sprite)
-            puck.sprite.shot_puck(keys)
+            if check_goal_collision():
+                score += 1
+            if player.sprite.rect.colliderect(puck.sprite.rect):
+                puck.sprite.in_motion = False
+                puck.sprite.speed_x = 0
+                puck.sprite.speed_y = 0
+                puck.sprite.has_puck(player.sprite)
+            if not puck.sprite.in_motion and not puck.sprite.stopped:
+                puck.sprite.has_puck(player.sprite)
             goal.update()
             goal.draw(screen)
             goal2.update()
             goal2.draw(screen)
             goalkeeper.update()
             goalkeeper.draw(screen)
-            if time == 5:
+            if time == 1000:
                 print("Konec")
                 game_active = False
             if is_collision():
@@ -255,6 +306,8 @@ while True:
             time_surface = time_font.render(f"čas: {time}", True, "Black")
             time_rect = time_surface.get_rect(topright=(200,200))
             screen.blit(time_surface, time_rect)
+            if keys[pygame.K_e]:
+                puck.sprite.shot_puck(player.sprite, keys)
         else:
             screen.blit(end_surface,(0,0))
             screen.blit(pohar,(200,200))
