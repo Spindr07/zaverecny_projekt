@@ -50,21 +50,55 @@ class Player(pygame.sprite.Sprite):
             self.rect.top = 0
         if self.rect.bottom > window_height:
             self.rect.bottom = window_height
-        def reset(self):
-            self.x = 100
-            self.y = 200
-         
-
 
 class Goalkeeper(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load("keeper.png")
-        self.image = pygame.transform.scale(self.image, (50,50))
-        self.rect = self.image.get_rect(midbottom = (300, 200) )
-
-
-
+        self.image = pygame.Surface((30, 30))
+        self.image.fill("Gray")
+        self.rect = self.image.get_rect(center=(400, 120))
+        self.speed = 2
+        self.direction = 1
+        self.has_puck = False
+        self.hold_timer = 0
+    def update(self):
+        self.rect.x += self.speed * self.direction
+        puck_x = puck.sprite.rect.centerx
+        if abs(puck_x - self.rect.centerx) > 5:  
+            if puck_x > self.rect.centerx:
+                self.rect.x += self.speed
+            else:
+                self.rect.x -= self.speed
+        if self.rect.left < 300:
+            self.rect.left = 300
+        if self.rect.right > 500:
+            self.rect.right = 500
+        if self.rect.left <= 300 or self.rect.right >= 500:
+            self.direction *= -1
+        if self.rect.colliderect(puck.sprite.rect) and puck.sprite.in_motion:
+            self.catch_puck()
+        if not self.has_puck:
+            if self.rect.colliderect(puck.sprite.rect) and puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
+                self.catch_puck()
+        else:
+            self.hold_timer += 1
+            puck.sprite.rect.center = (self.rect.centerx, self.rect.bottom + 5)
+            if self.hold_timer >= 60:
+                self.release_puck()
+    def catch_puck(self):
+        self.has_puck = True
+        puck.sprite.in_motion = False
+        puck.sprite.caught_by_goalie = True
+        self.hold_timer = 0
+        puck.sprite.speed_x = 0
+        puck.sprite.speed_y = 0
+    def release_puck(self):
+        self.has_puck = False
+        puck.sprite.caught_by_goalie = False
+        puck.sprite.in_motion = True
+        puck.sprite.speed_x = 0
+        puck.sprite.speed_y = 8  
+        self.hold_timer = 0
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, c = 200, d = 200):
         super().__init__()
@@ -84,9 +118,9 @@ class Puck(pygame.sprite.Sprite):
         self.speed_x = 0
         self.speed_y = 0
         self.stopped = False
-    def has_puck(self,player):
-        if not self.in_motion:
-            self.stopped = False
+        self.caught_by_goalie = False
+    def has_puck(self, player):
+        if not self.in_motion and not self.caught_by_goalie:
             offset_x = 30
             offset_y = 10
             if player.direction == "left":
@@ -96,6 +130,7 @@ class Puck(pygame.sprite.Sprite):
             else:
                 self.rect.centerx = player.rect.centerx
             self.rect.centery = player.rect.centery + offset_y
+
     def update(self):
         if self.in_motion:
             self.rect.x += self.speed_x
@@ -284,7 +319,7 @@ while True:
                 puck.sprite.speed_x = 0
                 puck.sprite.speed_y = 0
                 puck.sprite.has_puck(player.sprite)
-            if not puck.sprite.in_motion and not puck.sprite.stopped:
+            if not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
                 puck.sprite.has_puck(player.sprite)
             goal.update()
             goal.draw(screen)
@@ -295,11 +330,6 @@ while True:
             if time == 1000:
                 print("Konec")
                 game_active = False
-            if is_collision():
-                game_active = False
-                score += 1
-                player.update(keys)
-                player.draw(screen)
             score_surface = score_font.render(f"Skóre: {score}", True, "Black")
             score_rect = score_surface.get_rect(topleft=(20, 20))
             screen.blit(score_surface, score_rect)
