@@ -100,12 +100,33 @@ class Goalkeeper(pygame.sprite.Sprite):
         puck.sprite.speed_y = 8  
         self.hold_timer = 0
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, c = 200, d = 200):
+    def __init__(self, x, y, role="forward"):
         super().__init__()
-        self.image = pygame.Surface((40,60))
+        self.image = pygame.Surface((40, 60))
         self.image.fill("Blue")
-        self.rect = self.image.get_rect(midbottom=(c, d))
-        self.speed = 5
+        self.rect = self.image.get_rect(midbottom=(x, y))
+        self.speed = 3
+        self.role = role
+        self.start_x = x
+        self.start_y = y
+
+    def update(self, puck):
+        if self.role == "forward":
+            if puck.rect.x > 400:
+                self.move_towards(puck.rect.x, puck.rect.y)
+            else:
+                self.move_towards(self.start_x, self.start_y)
+
+        elif self.role == "defense":
+            if puck.rect.x < 400:
+                self.move_towards(puck.rect.x, puck.rect.y)
+            else:
+                self.move_towards(self.start_x, self.start_y)
+    def move_towards(self, target_x, target_y):
+        if abs(self.rect.x - target_x) > 5:
+            self.rect.x += self.speed if self.rect.x < target_x else -self.speed
+        if abs(self.rect.y - target_y) > 5:
+            self.rect.y += self.speed if self.rect.y < target_y else -self.speed
 class Puck(pygame.sprite.Sprite):
     def __init__(self, x = 100, y = 200,):
         super().__init__()
@@ -184,48 +205,31 @@ class Goal(pygame.sprite.Sprite):
         self.rect =  self.image.get_rect()
         self.rect.topleft = (a, b)
         
-def is_collision():
-    if puck.sprite.rect.colliderect(goal.sprite.rect):
-        if puck.sprite.rect.bottom <= goal.sprite.rect.top:
-            print("Dotek shora!")
+
 def check_goal_collision():
     if puck.sprite.rect.colliderect(goal.sprite.rect):
         if puck.sprite.speed_y < 0 and puck.sprite.rect.bottom <= goal.sprite.rect.bottom + 5:
             print("GÓL DO HORNÍ BRANKY!")
             puck.sprite.reset()
-            return True
-        else:
-            if abs(puck.sprite.speed_x) > abs(puck.sprite.speed_y):
-                puck.sprite.speed_x *= -1
-            else:
-                puck.sprite.speed_y *= -1
-            return False
+            return 'away'
     if puck.sprite.rect.colliderect(goal2.sprite.rect):
         if puck.sprite.speed_y > 0 and puck.sprite.rect.top >= goal2.sprite.rect.top - 5:
             print("GÓL DO DOLNÍ BRANKY!")
             puck.sprite.reset()
-            return True
-        else:
-            if abs(puck.sprite.speed_x) > abs(puck.sprite.speed_y):
-                puck.sprite.speed_x *= -1
-            else:
-                puck.sprite.speed_y *= -1
-            return False
-    return False
+            return 'home'
+    return None
+
+
 goalkeeper = pygame.sprite.GroupSingle()
 goalkeeper.add(Goalkeeper())
 puck = pygame.sprite.GroupSingle()
 puck.add(Puck())
-enemy = pygame.sprite.GroupSingle()
-enemy.add(Enemy())
-enemy1 = pygame.sprite.GroupSingle()
-enemy1.add(Enemy(300,300))
-enemy2 = pygame.sprite.GroupSingle()
-enemy2.add(Enemy(400,400))
-enemy3 = pygame.sprite.GroupSingle()
-enemy3.add(Enemy(450,450))
-enemy4 = pygame.sprite.GroupSingle()
-enemy4.add(Enemy(500,500))
+enemies = pygame.sprite.Group()
+enemies.add(Enemy(300, 300, "forward"))
+enemies.add(Enemy(400, 400, "forward"))
+enemies.add(Enemy(500, 500, "forward"))
+enemies.add(Enemy(250, 250, "defense"))
+enemies.add(Enemy(550, 250, "defense"))
 player = pygame.sprite.GroupSingle() 
 player.add(Player()) 
 goal = pygame.sprite.GroupSingle()
@@ -237,6 +241,8 @@ clock = pygame.time.Clock()
 offset_x = 20
 offset_y = 10
 score = 0
+home_score = 0
+away_score = 0
 frame = 0
 time = 0
 score_font = pygame.font.SysFont("arial", 40)
@@ -300,20 +306,21 @@ while True:
             player.draw(screen)
             frame += 1
             time = frame // 60
-            enemy.update()
-            enemy.draw(screen)
-            enemy1.update()
-            enemy1.draw(screen)
-            enemy2.update()
-            enemy2.draw(screen)
-            enemy3.update()
-            enemy3.draw(screen)
-            enemy4.update()
-            enemy4.draw(screen)
+            enemies.update(puck.sprite)
+            enemies.draw(screen)
             puck.sprite.update()
             puck.draw(screen)
+            goal_result = check_goal_collision()
+            if goal_result == 'home':
+                home_score += 1
+            elif goal_result == 'away':
+                away_score += 1
             if check_goal_collision():
-                score += 1
+                goal_result = check_goal_collision()
+                if goal_result == 'home':
+                    home_score += 1
+                elif goal_result == 'away':
+                    away_score += 1
             if player.sprite.rect.colliderect(puck.sprite.rect):
                 puck.sprite.in_motion = False
                 puck.sprite.speed_x = 0
@@ -331,8 +338,10 @@ while True:
                 print("Konec")
                 game_active = False
             score_surface = score_font.render(f"Skóre: {score}", True, "Black")
-            score_rect = score_surface.get_rect(topleft=(20, 20))
-            screen.blit(score_surface, score_rect)
+            home_surface = score_font.render(f"Domácí: {home_score}", True, "Black")
+            away_surface = score_font.render(f"{away_score} :Hosté", True, "Black")
+            screen.blit(home_surface, (250, 20))
+            screen.blit(away_surface, (410, 20))
             time_surface = time_font.render(f"čas: {time}", True, "Black")
             time_rect = time_surface.get_rect(topright=(200,200))
             screen.blit(time_surface, time_rect)
