@@ -1,4 +1,5 @@
 import pygame
+import math
 pygame.init()
 window_width = 800
 window_height = 1000
@@ -99,6 +100,70 @@ class Goalkeeper(pygame.sprite.Sprite):
         puck.sprite.speed_x = 0
         puck.sprite.speed_y = 8  
         self.hold_timer = 0
+class Teammate(pygame.sprite.Sprite):
+    def __init__(self, x, y, role="attacker"):
+        super().__init__()
+        self.image = pygame.Surface((40, 60))
+        self.image.fill("Green")
+        self.rect = self.image.get_rect(center=(x, y))
+        self.speed = 3
+        self.role = role 
+        self.direction = 1
+        self.has_puck = False
+        self.pass_cooldown = 0
+    def update(self, puck_rect, teammates_group, puck_obj):
+        if self.rect.colliderect(puck_rect.inflate(20, 20)):
+            self.has_puck = True
+            puck.carried_by = self
+        else:
+            if puck_obj.carried_by == self:
+                puck.carried_by = None
+            self.has_puck = False
+        if self.role == "attacker":
+            if puck_rect.centery < self.rect.centery:
+                self.rect.y -= self.speed
+            elif puck_rect.centery > self.rect.centery:
+                self.rect.y += self.speed
+            self.rect.x += self.direction * self.speed
+            if self.rect.left <= 100 or self.rect.right >= 700:
+                self.direction *= -1
+        elif self.role == "defender":
+            if puck_rect.centery < 500:
+                if self.rect.centery > 600:
+                    self.rect.y -= self.speed
+            else:
+                if self.rect.centery < 800:
+                    self.rect.y += self.speed
+        if self.has_puck:
+            if self.pass_cooldown <= 0:
+                self.pass_puck(teammates_group, puck)
+                self.pass_cooldown = 120
+            else:
+                self.pass_cooldown -= 1
+        if self.rect.colliderect(puck_rect) and puck.in_motion:
+            puck.sprite.carried_by = self
+            puck.sprite.in_motion = False
+            
+    def pass_puck(self, teammates_group, puck):
+        closest_teammate = None
+        min_distance = float('inf')
+        for mate in teammates_group:
+            if mate == self:
+                continue
+            dist = ((mate.rect.centerx - self.rect.centerx) ** 2 + (mate.rect.centery - self.rect.centery) ** 2) ** 0.5
+            if dist < min_distance:
+                min_distance = dist
+                closest_teammate = mate
+        if closest_teammate:
+            dx = closest_teammate.rect.centerx - self.rect.centerx
+            dy = closest_teammate.rect.centery - self.rect.centery
+            length = (dx**2 + dy**2) ** 0.5
+            speed = 10
+            puck.in_motion = True
+            puck.speed_x = dx / length * speed
+            puck.speed_y = dy / length * speed
+            puck.carried_by = None
+            self.has_puck = False
 class Enemy(pygame.sprite.Sprite):
     def __init__(self, x, y, role="forward"):
         super().__init__()
@@ -122,6 +187,7 @@ class Enemy(pygame.sprite.Sprite):
                 self.move_towards(puck.rect.x, puck.rect.y)
             else:
                 self.move_towards(self.start_x, self.start_y)
+        
     def move_towards(self, target_x, target_y):
         if abs(self.rect.x - target_x) > 5:
             self.rect.x += self.speed if self.rect.x < target_x else -self.speed
@@ -140,6 +206,10 @@ class Puck(pygame.sprite.Sprite):
         self.speed_y = 0
         self.stopped = False
         self.caught_by_goalie = False
+        self.carried_by = None
+        self.owner = None
+        self.target_pos = None
+        self.speed = 10
     def has_puck(self, player):
         if not self.in_motion and not self.caught_by_goalie:
             offset_x = 30
@@ -153,6 +223,10 @@ class Puck(pygame.sprite.Sprite):
             self.rect.centery = player.rect.centery + offset_y
 
     def update(self):
+        if self.carried_by:
+            self.rect.centerx = self.carried_by.rect.centerx
+            self.rect.centery = self.carried_by.rect.centery + 10
+            return
         if self.in_motion:
             self.rect.x += self.speed_x
             self.rect.y += self.speed_y
@@ -167,36 +241,105 @@ class Puck(pygame.sprite.Sprite):
                 self.speed_x = 0
                 self.speed_y = 0
                 self.stopped = True
+        if self.in_motion and self.target_pos:
+        # Aktuální pozice jako float Vector2 (zachová subpixelovou přesnost)
+            current_pos = pygame.math.Vector2(self.rect.centerx, self.rect.centery)
+            target = pygame.math.Vector2(self.target_pos)
+
+            direction = target - current_pos
+            distance = direction.length()
+
+            if distance <= self.speed:
+                self.rect.center = self.target_pos
+                self.in_motion = False
+                self.target_pos = None
+            else:
+                direction = direction.normalize()
+                move_vector = direction * self.speed
+                new_pos = current_pos + move_vector
+                self.rect.center = (round(new_pos.x), round(new_pos.y))
+
+        elif self.carried_by:
+            self.rect.center = self.carried_by.rect.center
+    def pass_puck_to(self, target_pos):
+        self.target_pos = target_pos
+        self.in_motion = True
+        self.carried_by = None
     def shot_puck(self, player, keys):
         if not self.in_motion:
             self.in_motion = True
             speed = 10
-            self.speed_x = 0
-            self.speed_y = 0
+            dx = 0
+            dy = 0
             if keys[pygame.K_w]:
-                self.speed_y = -speed
+                dy -= 1
             if keys[pygame.K_s]:
-                self.speed_y = speed
+                dy += 1
             if keys[pygame.K_a]:
-                self.speed_x = -speed
+                dx -= 1
             if keys[pygame.K_d]:
-                self.speed_x = speed
-            if self.speed_x != 0 and self.speed_y != 0:
-                self.speed_x *= 0.7071  
-                self.speed_y *= 0.7071
-            if self.speed_x == 0 and self.speed_y == 0:
+                dx += 1
+        # Pokud je alespoň nějaký směr, normalizuj a nastav rychlost
+            if dx != 0 or dy != 0:
+                length = (dx**2 + dy**2) ** 0.5
+                self.speed_x = dx / length * speed
+                self.speed_y = dy / length * speed
+            else:
+            # pokud nešla žádná klávesa, střela ve směru hráče
                 if player.direction == "left":
                     self.speed_x = -speed
+                    self.speed_y = 0
                 elif player.direction == "right":
                     self.speed_x = speed
+                    self.speed_y = 0
                 else:
+                    self.speed_x = 0
                     self.speed_y = -speed
+
 
     def reset(self):
         self.rect.topleft = (self.default_x, self.default_y)
         self.in_motion = False
         self.speed_x = 0
         self.speed_y = 0
+    def pick_up(self, player):
+        if not self.in_motion and not self.caught_by_goalie:
+            self.carried_by = player
+    def attach_to(self, player):
+        self.in_motion = False
+        self.owner = player
+        offset_x = 30
+        offset_y = 10
+        if hasattr(player, 'direction'):
+            if player.direction == "left":
+                self.rect.centerx = player.rect.centerx - offset_x
+            elif player.direction == "right":
+                self.rect.centerx = player.rect.centerx + offset_x
+            else:
+                self.rect.centerx = player.rect.centerx
+        else:
+            self.rect.centerx = player.rect.centerx
+        self.rect.centery = player.rect.centery + offset_y
+    def pass_to_teammate(self, player, teammates):
+        if self.in_motion or self.caught_by_goalie:
+            return
+        closest = None
+        min_dist = float('inf')
+        for mate in teammates:
+            dist = ((mate.rect.centerx - player.rect.centerx) ** 2 + (mate.rect.centery - player.rect.centery) ** 2) ** 0.5
+            if dist < min_dist:
+                closest = mate
+                min_dist = dist
+        if closest:
+            self.in_motion = True
+            dx = closest.rect.centerx - player.rect.centerx
+            dy = closest.rect.centery - player.rect.centery
+            length = (dx ** 2 + dy ** 2) ** 0.5
+            if length == 0:
+                return
+            speed = 8
+            self.speed_x = speed * dx / length
+            self.speed_y = speed * dy / length
 class Goal(pygame.sprite.Sprite):
     def __init__(self, a = 390, b = 90,):
         super().__init__()
@@ -230,6 +373,11 @@ enemies.add(Enemy(400, 400, "forward"))
 enemies.add(Enemy(500, 500, "forward"))
 enemies.add(Enemy(250, 250, "defense"))
 enemies.add(Enemy(550, 250, "defense"))
+teammates = pygame.sprite.Group()
+teammates.add(Teammate(200, 800, role="attacker"))
+teammates.add(Teammate(600, 800, role="attacker"))
+teammates.add(Teammate(250, 900, role="defender"))
+teammates.add(Teammate(550, 900, role="defender"))
 player = pygame.sprite.GroupSingle() 
 player.add(Player()) 
 goal = pygame.sprite.GroupSingle()
@@ -308,13 +456,10 @@ while True:
             time = frame // 60
             enemies.update(puck.sprite)
             enemies.draw(screen)
+            teammates.update(puck.sprite.rect, teammates, puck.sprite)
+            teammates.draw(screen)
             puck.sprite.update()
             puck.draw(screen)
-            goal_result = check_goal_collision()
-            if goal_result == 'home':
-                home_score += 1
-            elif goal_result == 'away':
-                away_score += 1
             if check_goal_collision():
                 goal_result = check_goal_collision()
                 if goal_result == 'home':
@@ -347,6 +492,10 @@ while True:
             screen.blit(time_surface, time_rect)
             if keys[pygame.K_e]:
                 puck.sprite.shot_puck(player.sprite, keys)
+            if keys[pygame.K_q] and not puck.sprite.in_motion:
+                nearest_teammate = min(teammates, key=lambda t: ((player.sprite.rect.centerx - t.rect.centerx) ** 2 + (player.sprite.rect.centery - t.rect.centery) ** 2))
+                target_pos = (nearest_teammate.rect.centerx, nearest_teammate.rect.centery)
+                puck.sprite.pass_puck_to(target_pos)
         else:
             screen.blit(end_surface,(0,0))
             screen.blit(pohar,(200,200))
