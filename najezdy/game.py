@@ -1,6 +1,7 @@
 import pygame
 import sys
 pygame.init()
+pygame.mixer.init()
 window_width = 800
 window_height = 1000
 screen = pygame.display.set_mode((window_width, window_height))
@@ -19,13 +20,14 @@ game_active = True
 clock = pygame.time.Clock()
 game_started = False
 can_pickup = False
-pickup_delay = 2000  
+pickup_delay = 500  
 start_time = pygame.time.get_ticks()
 paused = False
 goalie_caught_time = 0
-pause_duration = 2000
+pause_duration = 1000
+score = 0
 class Player(pygame.sprite.Sprite):
-    def __init__(self, x = 400, y = 925):
+    def __init__(self, x = 400, y = 970):
         super().__init__()
         self.image = pygame.Surface((40,60))
         self.image.fill("Red")
@@ -212,7 +214,7 @@ def check_goal_collision():
     if puck.sprite.rect.colliderect(goal.sprite.rect):
         if puck.sprite.speed_y < 0 and puck.sprite.rect.bottom <= goal.sprite.rect.bottom + 5:
             print("GÓL DO HORNÍ BRANKY!")
-            puck.sprite.reset()
+            puck.sprite.reset_position()
             return 'away'
     return None
 player = pygame.sprite.GroupSingle() 
@@ -223,95 +225,131 @@ goal = pygame.sprite.GroupSingle()
 goal.add(Goal())
 goalie = pygame.sprite.GroupSingle()
 goalie.add(Goalkeeper())
+title_font = pygame.font.SysFont("arial", 40)
+prompt_font = pygame.font.SysFont("arial", 40)
+score_font = pygame.font.SysFont("arial", 20)
+game_state = "menu"
+zvuk = pygame.mixer.Sound("menu_sound.mp3")
+zvuk.set_volume(0.3)
 while True:
-    keys = pygame.key.get_pressed()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit() 
             exit()
+    if game_state == "menu":
+        screen.fill("white")
+        zvuk.play()
+        title_surface = title_font.render(f"Hokejový zápas", True, "Black")
+        prompt_surface = prompt_font.render(f"Stiskněte enter", True, "Black")
+        WSAD_surface = prompt_font.render(f"WSAD = ovládání", True, "Black")
+        SPACE_surface = prompt_font.render(f"SPACE = střela", True, "Black")
+        screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
+        screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
+        screen.blit(WSAD_surface, (window_width//2 - prompt_surface.get_width()//2, 400))
+        screen.blit(SPACE_surface, (window_width//2 - prompt_surface.get_width()//2, 500))
+    if game_state == "menu":
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                game_state = "hra"
+                frame = 0
+                time = 0
+                game_active = True
+    elif game_state == "hra":
+        if not game_active and event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                frame = 0
+                time = 0
+                game_active = True
+                print("Restart")
     current_time = pygame.time.get_ticks()
-    if paused:
-        if paused and current_time - goalie_caught_time >= pause_duration:
-            paused = False
-            puck.sprite.reset_position()
-            player.sprite.reset_position()
-            can_pickup = False
-            start_time = current_time
-        else:
-            screen.blit(sky_surface,(0,0)) 
-            screen.blit(stredovka,(0,850))
-            screen.blit(ofsajd_lajna,(0,600))
-            screen.blit(brankova_lajna,(0,100))
-            pygame.draw.circle(sky_surface, "blue", (400,857.5),50,5 )
-            for q in puntiky:
-                pygame.draw.circle(sky_surface, "red", q,5,)
-            for w in postranni_kruhy:
-                pygame.draw.circle(sky_surface, "red",w,50,5 )
-            player.draw(screen)
-            puck.draw(screen)
-            goal.draw(screen)
-            goalie.draw(screen)
-            pygame.display.flip()
-            clock.tick(60)
-            continue
-    if not paused:
-        if not can_pickup and pygame.time.get_ticks() - start_time > pickup_delay:
-            can_pickup = True
-        if not paused and puck.sprite.caught_by_goalie:
-            paused = True
-            goalie_caught_time = pygame.time.get_ticks()
-        if puck.sprite.rect.colliderect(goalie.sprite.rect):
-            puck.sprite.caught_by_goalie = True
-            puck.sprite.in_motion = False
-            puck.sprite.speed_x = 0
-            puck.sprite.speed_y = 0
-            paused = True
-            goalie_caught_time = current_time
-            goalie.sprite.has_puck = True
-        if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect):
-            puck.sprite.in_motion = False
-            puck.sprite.speed_x = 0
-            puck.sprite.speed_y = 0
-            puck.sprite.has_puck(player.sprite)
-        if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
-            if player.sprite.rect.colliderect(puck.sprite.rect):
-                puck.sprite.has_puck(player.sprite)
-        screen.blit(sky_surface,(0,0)) 
-        screen.blit(stredovka,(0,850))
-        screen.blit(ofsajd_lajna,(0,600))
-        screen.blit(brankova_lajna,(0,100))
-        pygame.draw.circle(sky_surface, "blue", (400,857.5),50,5 )
-        for q in puntiky:
-            pygame.draw.circle(sky_surface, "red", q,5,)
-        for w in postranni_kruhy:
-            pygame.draw.circle(sky_surface, "red",w,50,5 )
-        player.update(keys)
-        player.draw(screen)
-        puck.update()
-        puck.draw(screen)
-        goal.update()
-        goal.draw(screen)
-        goalie.update()
-        goalie.draw(screen)
-        if puck.sprite.rect.colliderect(goalie.sprite.rect):
-            puck.sprite.caught_by_goalie = True
-            puck.sprite.in_motion = False
-            puck.sprite.speed_x = 0
-            puck.sprite.speed_y = 0
-            paused = True
-            goalie_caught_time = current_time
-        if not can_pickup and pygame.time.get_ticks() - start_time > pickup_delay:
-            can_pickup = True
-        if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect):
-            puck.sprite.in_motion = False
-            puck.sprite.speed_x = 0
-            puck.sprite.speed_y = 0
-            puck.sprite.has_puck(player.sprite)
-        if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
-           puck.sprite.has_puck(player.sprite)
-        if keys[pygame.K_SPACE]:
-            puck.sprite.shot_puck(player.sprite, keys)
-        if check_goal_collision():
-            goal_result = check_goal_collision()    
-        pygame.display.flip()
-        clock.tick(60)
+    pygame.display.flip()
+    if game_state == "hra":
+        if game_active:
+            keys = pygame.key.get_pressed()
+            if paused:
+                if paused and current_time - goalie_caught_time >= pause_duration:
+                    paused = False
+                    puck.sprite.reset_position()
+                    player.sprite.reset_position()
+                    can_pickup = False
+                    start_time = current_time
+                else:
+                    screen.blit(sky_surface,(0,0)) 
+                    screen.blit(stredovka,(0,850))
+                    screen.blit(ofsajd_lajna,(0,600))
+                    screen.blit(brankova_lajna,(0,100))
+                    pygame.draw.circle(sky_surface, "blue", (400,857.5),50,5 )
+                    for q in puntiky:
+                        pygame.draw.circle(sky_surface, "red", q,5,)
+                    for w in postranni_kruhy:
+                        pygame.draw.circle(sky_surface, "red",w,50,5 )
+                    player.draw(screen)
+                    puck.draw(screen)
+                    goal.draw(screen)
+                    goalie.draw(screen)
+                    pygame.display.flip()
+                    clock.tick(60)
+                    continue
+            if not paused:
+                if not can_pickup and pygame.time.get_ticks() - start_time > pickup_delay:
+                    can_pickup = True
+                if not paused and puck.sprite.caught_by_goalie:
+                    paused = True
+                    goalie_caught_time = pygame.time.get_ticks()
+                if puck.sprite.rect.colliderect(goalie.sprite.rect):
+                    puck.sprite.caught_by_goalie = True
+                    puck.sprite.in_motion = False
+                    puck.sprite.speed_x = 0
+                    puck.sprite.speed_y = 0
+                    paused = True
+                    goalie_caught_time = current_time
+                    goalie.sprite.has_puck = True
+                if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect):
+                    puck.sprite.in_motion = False
+                    puck.sprite.speed_x = 0
+                    puck.sprite.speed_y = 0
+                    puck.sprite.has_puck(player.sprite)
+                if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
+                    if player.sprite.rect.colliderect(puck.sprite.rect):
+                        puck.sprite.has_puck(player.sprite)
+                score_surface = score_font.render(f"skóre: {score}", True, "Black")
+                screen.blit(sky_surface,(0,0)) 
+                screen.blit(stredovka,(0,850))
+                screen.blit(ofsajd_lajna,(0,600))
+                screen.blit(brankova_lajna,(0,100))
+                screen.blit(score_surface,(0,100))
+                pygame.draw.circle(sky_surface, "blue", (400,857.5),50,5 )
+                for q in puntiky:
+                    pygame.draw.circle(sky_surface, "red", q,5,)
+                for w in postranni_kruhy:
+                    pygame.draw.circle(sky_surface, "red",w,50,5 )
+                player.update(keys)
+                player.draw(screen)
+                puck.update()
+                puck.draw(screen)
+                goal.update()
+                goal.draw(screen)
+                goalie.update()
+                goalie.draw(screen)
+                if puck.sprite.rect.colliderect(goalie.sprite.rect):
+                    puck.sprite.caught_by_goalie = True
+                    puck.sprite.in_motion = False
+                    puck.sprite.speed_x = 0
+                    puck.sprite.speed_y = 0
+                    paused = True
+                    goalie_caught_time = current_time
+                if not can_pickup and pygame.time.get_ticks() - start_time > pickup_delay:
+                    can_pickup = True
+                if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect):
+                    puck.sprite.in_motion = False
+                    puck.sprite.speed_x = 0
+                    puck.sprite.speed_y = 0
+                    puck.sprite.has_puck(player.sprite)
+                if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
+                    puck.sprite.has_puck(player.sprite)
+                if keys[pygame.K_SPACE]:
+                    puck.sprite.shot_puck(player.sprite, keys)
+                if check_goal_collision():
+                    goal_result = check_goal_collision() 
+                    score += 1   
+                pygame.display.flip()
+                clock.tick(60)
