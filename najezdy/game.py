@@ -1,11 +1,12 @@
 import pygame
-import sys
 pygame.init()
 pygame.mixer.init()
 window_width = 800
 window_height = 1000
 screen = pygame.display.set_mode((window_width, window_height))
 pygame.display.set_caption("Hokejové nájezdy")
+end_surface = pygame.Surface((window_width,window_height))
+end_surface.fill("black")
 sky_surface = pygame.Surface((window_width,window_height))
 sky_surface.fill("white")
 stredovka = pygame.Surface((800,10))
@@ -81,6 +82,7 @@ class Puck(pygame.sprite.Sprite):
         self.owner = None
         self.target_pos = None
         self.speed = 10
+        self.was_shot = False
     def has_puck(self, player):
         if not self.in_motion and not self.caught_by_goalie:
             self.carried_by = player
@@ -134,6 +136,7 @@ class Puck(pygame.sprite.Sprite):
             self.rect.center = self.carried_by.rect.center
     def shot_puck(self, player, keys):
         if not self.in_motion:
+            self.was_shot = False
             self.carried_by = None
             self.in_motion = True
             speed = 10
@@ -152,6 +155,7 @@ class Puck(pygame.sprite.Sprite):
                 self.speed_x = dx / length * speed
                 self.speed_y = dy / length * speed
             else:
+                self.was_shot = True
                 if player.direction == "left":
                     self.speed_x = -speed
                     self.speed_y = 0
@@ -170,6 +174,7 @@ class Puck(pygame.sprite.Sprite):
         self.carried_by = None
         self.stopped = False
         self.just_reset = True
+        self.was_shot = False
 class Goal(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -183,9 +188,9 @@ class Goalkeeper(pygame.sprite.Sprite):
         man_1 = pygame.image.load('Red_keeper.png')
         man_2 = pygame.image.load('left.png.png')
         man_3 = pygame.image.load('right (1).png')
-        man_1 = pygame.transform.scale(pygame.image.load('Red_keeper.png'), (50, 80))
-        man_2 = pygame.transform.scale(pygame.image.load('left.png.png'), (50, 70))
-        man_3 = pygame.transform.scale(pygame.image.load('right (1).png'), (50, 70))
+        man_1 = pygame.transform.scale(pygame.image.load('Red_keeper.png'), (40, 70))
+        man_2 = pygame.transform.scale(pygame.image.load('left.png.png'), (40, 60))
+        man_3 = pygame.transform.scale(pygame.image.load('right (1).png'), (40, 60))
         self.keeping_images = [man_1, man_2, man_3]
         self.keeping_index = 0
         self.image = self.keeping_images[self.keeping_index]
@@ -195,32 +200,22 @@ class Goalkeeper(pygame.sprite.Sprite):
         self.has_puck = False
         self.hold_timer = 0
     def update(self):
-        puck_x = puck.sprite.rect.centerx  # nebo self.puck.sprite.rect.centerx, pokud předáváš puk
-
-    # Pohyb podle pozice puku
+        puck_x = puck.sprite.rect.centerx  
         if puck_x > self.rect.centerx:
             self.rect.x += self.move_speed
-            self.keeping_index = 2  # doprava
+            self.keeping_index = 2 
         elif puck_x < self.rect.centerx:
             self.rect.x -= self.move_speed
-            self.keeping_index = 1  # doleva
+            self.keeping_index = 1 
         else:
-            self.keeping_index = 0  # stojí
-
-    # Aktualizace obrázku podle směru
+            self.keeping_index = 0
         self.image = self.keeping_images[self.keeping_index]
-
-    # Udržení v brankovišti
         if self.rect.left < 350:
             self.rect.left = 350
         if self.rect.right > 450:
             self.rect.right = 450
-
-    # Zpracování kontaktu s pukem
         if self.rect.colliderect(puck.sprite.rect) and puck.sprite.in_motion and not self.has_puck:
             self.catch_puck()
-
-    # Pokud má puk, drží ho
         if self.has_puck:
             self.hold_timer += 1
             puck.sprite.rect.center = (self.rect.centerx, self.rect.bottom + 5)
@@ -241,10 +236,17 @@ class Goalkeeper(pygame.sprite.Sprite):
         self.hold_timer = 0
 
 def check_goal_collision():
-    if puck.sprite.rect.colliderect(goal.sprite.rect):
-        if puck.sprite.speed_y < 0 and puck.sprite.rect.bottom <= goal.sprite.rect.bottom + 5:
-            puck.sprite.reset_position()
-            return 'away'
+    puck_rect = puck.sprite.rect
+    goal_rect = goal.sprite.rect
+
+    if (
+        puck.sprite.speed_y < 0 and
+        puck_rect.left >= goal_rect.left and
+        puck_rect.right <= goal_rect.right and
+        puck_rect.top <= goal_rect.bottom - 5
+    ):
+        puck.sprite.reset_position()
+        return 'away'
     return None
 player = pygame.sprite.GroupSingle() 
 player.add(Player())
@@ -260,28 +262,32 @@ score_font = pygame.font.SysFont("calligrapher", 30)
 game_state = "menu"
 zvuk = pygame.mixer.Sound("menu_sound.mp3")
 zvuk.set_volume(0.3)
+goal_horn = pygame.mixer.Sound("goal.mp3")
+goal_horn.set_volume(0.3)
+win_horn = pygame.mixer.Sound("win.mp3")
+win_horn.set_volume(0.3)
+fail_horn = pygame.mixer.Sound("fail.mp3")
+fail_horn.set_volume(0.3)
+menu_background = pygame.image.load("menu.png")
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit() 
             exit()
     if game_state == "menu":
-        screen.fill("white")
+        screen.blit(menu_background, (-240,100))
         zvuk.play()
-        title_surface = title_font.render(f"Hokejový zápas", True, "Black")
-        prompt_surface = prompt_font.render(f"Stiskněte enter", True, "Black")
-        WSAD_surface = prompt_font.render(f"WSAD = ovládání", True, "Black")
-        SPACE_surface = prompt_font.render(f"SPACE = střela", True, "Black")
-        screen.blit(title_surface, (window_width//2 - title_surface.get_width()//2, 200))
-        screen.blit(prompt_surface, (window_width//2 - prompt_surface.get_width()//2, 300))
-        screen.blit(WSAD_surface, (window_width//2 - prompt_surface.get_width()//2, 400))
-        screen.blit(SPACE_surface, (window_width//2 - prompt_surface.get_width()//2, 500))
+        title_surface = title_font.render(f"Hokejová hra: Nájezdy", True, "White")
+        ovladani_surface = title_font.render(f"WSAD, SPACE, 5/10 for win", True, "White")
+        screen.blit(title_surface,(100,50))
+        screen.blit(ovladani_surface,(100,850))
     if game_state == "menu":
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
                 game_state = "hra"
                 frame = 0
                 time = 0
                 game_active = True
+                zvuk.stop()
     elif game_state == "hra":
         if not game_active and event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
@@ -324,7 +330,7 @@ while True:
                 if not paused and puck.sprite.caught_by_goalie:
                     paused = True
                     goalie_caught_time = pygame.time.get_ticks()
-                if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie:
+                if can_pickup and not puck.sprite.in_motion and not puck.sprite.caught_by_goalie and not puck.sprite.was_shot:
                     if player.sprite.rect.colliderect(puck.sprite.rect):
                         puck.sprite.has_puck(player.sprite)
                 score_surface = score_font.render(f"skóre: {score}", True, "Black")
@@ -348,6 +354,16 @@ while True:
                 goal.draw(screen)
                 goalie.update()
                 goalie.draw(screen)
+                goal_rect = goal.sprite.rect
+                left_post = pygame.Rect(goal_rect.left, goal_rect.top, 5, goal_rect.height)
+                right_post = pygame.Rect(goal_rect.right - 5, goal_rect.top, 5, goal_rect.height)
+                top_bar = pygame.Rect(goal_rect.left, goal_rect.top, goal_rect.width, 5)
+                if puck.sprite.rect.colliderect(left_post) and puck.sprite.speed_x > 0:
+                    puck.sprite.speed_x *= -1
+                if puck.sprite.rect.colliderect(right_post) and puck.sprite.speed_x < 0:
+                    puck.sprite.speed_x *= -1
+                if puck.sprite.rect.colliderect(top_bar) and puck.sprite.speed_y < 0:
+                    puck.sprite.speed_y *= -1
                 if puck.sprite.rect.colliderect(goalie.sprite.rect):
                     puck.sprite.caught_by_goalie = True
                     attempts += 1
@@ -358,14 +374,16 @@ while True:
                     goalie_caught_time = current_time
                 if not can_pickup and pygame.time.get_ticks() - start_time > pickup_delay:
                     can_pickup = True
-                if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect):
+                if puck.sprite.in_motion and player.sprite.rect.colliderect(puck.sprite.rect) and not puck.sprite.was_shot:
                     puck.sprite.in_motion = False
                     puck.sprite.speed_x = 0
                     puck.sprite.speed_y = 0
                     puck.sprite.has_puck(player.sprite)
                 if keys[pygame.K_SPACE]:
                     puck.sprite.shot_puck(player.sprite, keys)
+                    puck.sprite.was_shot = True
                 if check_goal_collision():
+                    goal_horn.play()
                     goal_result = check_goal_collision() 
                     score += 1  
                     attempts += 1
@@ -391,7 +409,7 @@ while True:
                         screen.blit(brankova_lajna,(0,100))
                         score_surface = score_font.render(f"skóre: {score}", True, "Black")
                         screen.blit(score_surface,(0,100))
-                        attempts_surface_surface = score_font.render(f"skóre: {attempts}", True, "Black")
+                        attempts_surface = score_font.render(f"skóre: {attempts}", True, "Black")
                         screen.blit(attempts_surface,(0,100))
                         pygame.draw.circle(sky_surface, "blue", (400,857.5),100,5 )
                         for q in puntiky:
@@ -405,12 +423,20 @@ while True:
                         pygame.display.flip()
                         clock.tick(60)
                         continue
-                if attempts == 5:
-                    if score >= 3:
-                        print("Výhra")
-                        break
+                if attempts == 10:
+                    screen.blit(end_surface,(0,0))
+                    if score >= 5:
+                        win_surface = pygame.image.load("win.png")
+                        win_surface = pygame.transform.scale(pygame.image.load("win.png"), (window_width, window_height))
+                        score_surface = score_font.render(f"skóre: {score}", True, "Black")
+                        win_horn.play()
+                        screen.blit(win_surface,(0,0))
+                        screen.blit(score_surface,(350,900))
                     else:
-                        print("prohra")
-                        break
+                        lose_surface = pygame.image.load("lose.png")
+                        lose_surface = pygame.transform.scale(pygame.image.load("lose.png"), (window_width, window_height))
+                        screen.blit(lose_surface,(0,0))
+                        fail_horn.play()
+                    game_active = False
                 clock.tick(60)
                 pygame.display.flip()
