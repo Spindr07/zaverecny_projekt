@@ -33,8 +33,16 @@ waiting_after_stop = False
 class Player(pygame.sprite.Sprite):
     def __init__(self, x = 400, y = 970):
         super().__init__()
-        self.image = pygame.Surface((40,60))
-        self.image.fill("Red")
+        player_1 = pygame.image.load('Standing.png')
+        player_2 = pygame.image.load('Moving1.png')
+        player_3 = pygame.image.load('Moving2.png')
+        player_1 = pygame.transform.scale(pygame.image.load('Standing.png'), (40, 70))
+        player_2 = pygame.transform.scale(pygame.image.load('Moving1.png'), (40, 60))
+        player_3 = pygame.transform.scale(pygame.image.load('Moving2.png'), (40, 60))
+        self.player_images = [player_2, player_3]
+        self.player_index = 0
+        self.standing_image = player_1
+        self.image = self.player_images[self.player_index]
         self.rect = self.image.get_rect(midbottom = (x,y))
         self.default_x = x
         self.default_y = y
@@ -42,19 +50,34 @@ class Player(pygame.sprite.Sprite):
         self.direction = None
         self.position = (x,y)
         self.active = True
+        self.animation_counter = 0
+        self.animation_speed= 0.05
+        self.index = 0
     def update(self, keys):
+        moving = False
         if not self.active:
             return
         if keys[pygame.K_a]:
             self.rect.x -= self.speed
             self.direction = "left"
+            moving = True
         if keys[pygame.K_d]:
             self.rect.x += self.speed
             self.direction = "right"
+            moving = True
         if keys[pygame.K_w]:
             self.rect.y -= self.speed
+            moving = True
         if keys[pygame.K_s]:
             self.rect.y += self.speed
+            moving = True
+        if moving:
+            self.animate()
+      
+        else:
+            self.player_index = 0
+            self.image = self.player_images[self.player_index]
+            self.image = self.standing_image
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > window_width:
@@ -63,6 +86,12 @@ class Player(pygame.sprite.Sprite):
             self.rect.top = 0
         if self.rect.bottom > window_height:
             self.rect.bottom = window_height
+    def animate(self):
+        self.animation_counter += self.animation_speed
+        if self.animation_counter >= 1:
+            self.animation_counter = 0
+            self.index = (self.index + 1) % len(self.player_images)
+            self.image = self.player_images[self.index]
     def reset_position(self):
         self.rect.midbottom = (self.default_x, self.default_y)
 class Puck(pygame.sprite.Sprite):
@@ -243,8 +272,7 @@ def check_goal_collision():
         puck.sprite.speed_y < 0 and
         puck_rect.left >= goal_rect.left and
         puck_rect.right <= goal_rect.right and
-        puck_rect.top <= goal_rect.bottom - 5
-    ):
+        puck_rect.top <= goal_rect.bottom - 5):
         puck.sprite.reset_position()
         return 'away'
     return None
