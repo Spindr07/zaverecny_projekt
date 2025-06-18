@@ -289,7 +289,7 @@ prompt_font = pygame.font.SysFont("arial", 40)
 score_font = pygame.font.SysFont("calligrapher", 30)
 game_state = "menu"
 zvuk = pygame.mixer.Sound("menu_sound.mp3")
-zvuk.set_volume(0.3)
+zvuk.set_volume(0.2)
 goal_horn = pygame.mixer.Sound("goal.mp3")
 goal_horn.set_volume(0.3)
 win_horn = pygame.mixer.Sound("win.mp3")
